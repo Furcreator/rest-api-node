@@ -1,4 +1,4 @@
-const errorMessage = require("./errorMessage");
+const errorMessage = require("./appError");
 const catchAsync = require("./catchAsync");
 
 module.exports = {
