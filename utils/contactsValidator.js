@@ -1,5 +1,7 @@
 const Joi = require("joi");
 
+// Validation for contacts
+
 exports.createContactDataValidator = (data) =>
   Joi.object()
     .options({ abortEarly: false })
@@ -26,5 +28,24 @@ exports.updateContactFavoriteValidator = (data) =>
   Joi.object()
     .keys({
       favorite: Joi.boolean(),
+    })
+    .validate(data);
+
+// Validation for users
+exports.registerUserDataValidator = (data) =>
+  Joi.object()
+    .options({ abortEarly: false })
+    .keys({
+      email: Joi.string().email().required(),
+      password: Joi.string().min(3).required(),
+    })
+    .validate(data);
+
+exports.loginUserDataValidator = (data) =>
+  Joi.object()
+    .options({ abortEarly: false })
+    .keys({
+      email: Joi.string().email().required(),
+      password: Joi.string().required(),
     })
     .validate(data);
