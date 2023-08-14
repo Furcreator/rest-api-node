@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const multer = require("multer");
 const cathAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const User = require("../models/usersModel");
@@ -66,3 +67,31 @@ exports.protect = cathAsync(async (req, res, next) => {
 
   next();
 });
+
+// config multer storage
+const multerStorage = multer.diskStorage({
+  destination: (req, file, cbk) => {
+    cbk(null, "tmp");
+  },
+  filename: (req, file, cbk) => {
+    cbk(null, `${file.originalname}`);
+  },
+});
+
+// config multer filter
+const multerFilter = (req, file, cbk) => {
+  // 'image/*'
+  if (file.mimetype.startsWith("image/")) {
+    cbk(null, true);
+  } else {
+    cbk(new AppError(400, "Please, upload images only!"), false);
+  }
+};
+
+exports.uploadUserAvatar = multer({
+  storage: multerStorage,
+  fileFilter: multerFilter,
+  limits: {
+    fileSize: 1 * 1024 * 1024,
+  },
+}).single("avatarURL");
