@@ -94,4 +94,4 @@ exports.uploadUserAvatar = multer({
   limits: {
     fileSize: 1 * 1024 * 1024,
   },
-}).single("avatarURL");
+}).single("avatar");
