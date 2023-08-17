@@ -8,11 +8,35 @@ const jimp = require("jimp");
 const path = require("path");
 const uuid = require("uuid").v4;
 const fs = require("fs");
+const nodemailer = require("nodemailer");
+const { emailValidator } = require("../utils/contactsValidator");
 // registration user
 exports.registrUser = cathAsync(async (req, res) => {
   const hashedPassword = await bcrypt.hash(req.body.password, 10);
-  const user = { ...req.body, password: hashedPassword };
+
+  const verificationToken = uuid();
+  const user = { ...req.body, password: hashedPassword, verificationToken };
   const newUser = await User.create(user);
+
+  // send verify to email
+  const emailTransport = nodemailer.createTransport({
+    service: "SendGrid",
+    auth: {
+      user: process.env.SENDGRID_USERNAME,
+      pass: process.env.SENDGRID_APIKEY,
+    },
+  });
+
+  const emailConfig = {
+    from: "Confirm your email <dan.mikhnevich20@gmail.com>",
+    to: user.email,
+    subject: "If you like to use our service confirm your email",
+    html: `<a target="_blanck" href="${req.protocol}://${req.get(
+      "host"
+    )}/users/verify/${verificationToken}">Verify your email</a>`,
+  };
+
+  await emailTransport.sendMail(emailConfig);
 
   res.status(201).json({
     user: { email: newUser.email, subscription: newUser.subscription },
@@ -25,6 +49,9 @@ exports.loginUser = cathAsync(async (req, res) => {
 
   const user = await User.findOne({ email }).select("+password");
   if (!user) throw new AppError(401, "Email or password is wrong");
+
+  if (!user.verify)
+    throw new AppError(401, "Not authorized (Email is not verify)");
 
   const passwordIsValid = await bcrypt.compare(password, user.password);
   if (!passwordIsValid) throw new AppError(401, "Email or password is wrong");
@@ -90,4 +117,65 @@ exports.changeUserAvatar = catchAsync(async (req, res) => {
   );
 
   res.status(200).json({ avatarURL: user.avatarURL });
+});
+
+// verify email by verificationToken
+exports.verifyEmail = catchAsync(async (req, res) => {
+  const { verificationToken } = req.params;
+
+  const user = await User.findOne({ verificationToken });
+
+  if (!user) throw new AppError(404, "User not found");
+
+  user.verificationToken = null;
+  user.verify = true;
+
+  await User.findByIdAndUpdate(user._id, {
+    verify: true,
+    verificationToken: "",
+  });
+
+  res.status(200).json({ message: "Verification successful" });
+});
+
+// repeate send on email verificationToken for email
+exports.repeatedVerifyEmail = catchAsync(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) throw new AppError(400, "missing required field email");
+
+  // verification email joi!!!!
+  const { error, value } = emailValidator(req.body);
+  if (error) {
+    console.log(error);
+    throw new AppError(400, "Invalid user data (Joi)..");
+  }
+
+  const user = await User.findOne(value);
+
+  if (!user) throw new AppError(400, "Try again");
+
+  if (user.verify === true)
+    throw new AppError(400, "Verification has already been passed");
+
+  const emailTransport = nodemailer.createTransport({
+    service: "SendGrid",
+    auth: {
+      user: process.env.SENDGRID_USERNAME,
+      pass: process.env.SENDGRID_APIKEY,
+    },
+  });
+
+  const emailConfig = {
+    from: "Confirm your email <dan.mikhnevich20@gmail.com>",
+    to: user.email,
+    subject: "If you like to use our service confirm your email",
+    html: `<a target="_blanck" href="${req.protocol}://${req.get(
+      "host"
+    )}/users/verify/${user.verificationToken}">Verify your email</a>`,
+  };
+
+  await emailTransport.sendMail(emailConfig);
+
+  res.status(200).json({ message: "Verification email sent" });
 });
