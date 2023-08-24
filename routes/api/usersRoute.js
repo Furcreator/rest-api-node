@@ -13,6 +13,8 @@ const {
   currentUser,
   logoutUser,
   changeUserAvatar,
+  verifyEmail,
+  repeatedVerifyEmail,
 } = require("../../controllers/usersControllers");
 
 // registration
@@ -29,5 +31,11 @@ router.get("/current", protect, currentUser);
 
 // change avatar
 router.patch("/avatars", protect, uploadUserAvatar, changeUserAvatar);
+
+// verify email by link with token
+router.get("/verify/:verificationToken", verifyEmail);
+
+// repeate send of verify token
+router.post("/verify", repeatedVerifyEmail);
 
 module.exports = router;
